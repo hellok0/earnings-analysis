@@ -1,0 +1,58 @@
+import os 
+import shutil
+import re
+from docx import Document  
+import fitz
+
+
+def transcript_validity(text):
+    text_lower = text.lower()
+    word_count = len(text.split())
+
+    if word_count <300:
+        return False, "The transcript's word count is too low"
+    
+    speaker_lines  = re.findall(r"^[A-Z][a-zA-Z\s]+\:", text, flags=re.MULTILINE)
+    if len(speaker_lines) < 2:
+        return False, "Not enough speaker lines"
+    
+    common_phrases = ["financial results", "earnings call", "conference call", "welcome"]
+    phrase_hits = sum(1 for phrase in common_phrases if phrase in text_lower)
+    if phrase_hits < 2:
+        return False, "Missing common phrases"
+    
+    return True, "Transcript is valid"
+    
+def read_docx(docx_path):
+    doc = Document(docx_path)
+    return "\n".join([para.text for para in doc.paragraphs])
+
+def read_pdf(pdf_path):
+    doc = fitz.open(pdf_path)
+    text = ""
+    for page in doc:
+        text += page.get_text()
+    return text
+
+def upload_transcript():
+    source_path = input("Enter the path to the transcript file: ").strip()
+    if not os.path.exists(source_path):
+        print("File not found")
+        return
+    ext = os.path.splitext(source_path)[1].lower()
+    if ext == ".docx":
+        text = read_docx(source_path)
+    elif ext == ".txt":
+        with open(source_path, "r", encoding="utf-8") as f:
+            text = f.read()
+    elif ext == ".pdf":
+        text = read_pdf(source_path)
+    else:
+        print("Unsupported file type. Please use a .txt, .pdf or .docx file.")
+        return
+
+    is_valid, message = transcript_validity(text)
+    print(f"\n Validation: {message}")
+
+if __name__ == "__main__":
+    upload_transcript()
